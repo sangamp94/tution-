@@ -115,17 +115,17 @@ model StudentInfo {
 }
 
 model StudentSignupRequest {
-  id           String              @id @default(cuid())
-  tuition_id   String
-  name         String
-  phone        String
-  password_hash String
-  grade_class  String?
-  custom_fee   Decimal?            @db.Decimal(10, 2)
-  status       SignupRequestStatus @default(PENDING)
-  created_at   DateTime            @default(now())
-  reviewed_at  DateTime?
-  tuition      Tuition             @relation(fields: [tuition_id], references: [id], onDelete: Cascade)
+  id             String              @id @default(cuid())
+  tuition_id     String
+  name           String
+  phone          String
+  password_hash  String
+  grade_class    String?
+  custom_fee     Decimal?            @db.Decimal(10, 2)
+  status         SignupRequestStatus @default(PENDING)
+  created_at     DateTime            @default(now())
+  reviewed_at    DateTime?
+  tuition        Tuition             @relation(fields: [tuition_id], references: [id], onDelete: Cascade)
 
   @@index([tuition_id, status])
   @@index([phone])
@@ -162,6 +162,7 @@ model FeePayment {
   @@index([student_id])
   @@index([tuition_id])
   @@index([for_month])
+  @@map("fee_payments")
 }
 
 model Notice {
