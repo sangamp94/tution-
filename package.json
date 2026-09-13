@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "prisma generate && (prisma migrate resolve --rolled-back 20260913120000_tuition_features || true) && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",
-    "bcryptjs": "^2.4.3",
+    "bcryptjs": "^2.4.0",
     "jsonwebtoken": "^9.0.2",
     "next": "^14.2.15",
     "react": "^18.3.1",
