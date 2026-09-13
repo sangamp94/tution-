@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
 export type UserRole = 'TEACHER' | 'STUDENT';
@@ -20,7 +20,7 @@ function getJwtSecret(): string {
 }
 
 export function signToken(payload: JwtPayload): string {
-  const expiresIn = process.env.JWT_EXPIRES_IN || '30d';
+  const expiresIn = (process.env.JWT_EXPIRES_IN || '30d') as SignOptions['expiresIn'];
   return jwt.sign(payload, getJwtSecret(), { expiresIn });
 }
 
