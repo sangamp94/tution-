@@ -58,3 +58,49 @@ export const GET = withAuth(async (_req: NextRequest, _ctx, auth) => {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 });
+
+export const DELETE = withAuth(async (req: NextRequest, _ctx, auth) => {
+  try {
+    if (auth.role !== 'TEACHER') {
+      return NextResponse.json({ error: 'Only teachers can delete students' }, { status: 403 });
+    }
+
+    const body = await req.json().catch(() => null);
+    const studentId = typeof body?.student_id === 'string' ? body.student_id.trim() : '';
+    const userId = typeof body?.user_id === 'string' ? body.user_id.trim() : '';
+
+    if (!studentId && !userId) {
+      return NextResponse.json({ error: 'student_id or user_id is required' }, { status: 400 });
+    }
+
+    const tuition = await prisma.tuition.findUnique({
+      where: { tutor_id: auth.userId },
+      select: { id: true },
+    });
+    if (!tuition) {
+      return NextResponse.json({ error: 'Tuition not found' }, { status: 404 });
+    }
+
+    const student = await prisma.studentInfo.findFirst({
+      where: {
+        tuition_id: tuition.id,
+        ...(studentId ? { id: studentId } : { user_id: userId }),
+      },
+      select: { id: true, user_id: true },
+    });
+
+    if (!student) {
+      return NextResponse.json({ error: 'Student not found in your tuition' }, { status: 404 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.studentInfo.delete({ where: { id: student.id } });
+      await tx.user.delete({ where: { id: student.user_id } });
+    });
+
+    return NextResponse.json({ success: true, message: 'Student deleted successfully' });
+  } catch (err) {
+    console.error('Student delete error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}, ['TEACHER']);
