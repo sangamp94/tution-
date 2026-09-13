@@ -49,8 +49,22 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('Signup error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+    const message = err instanceof Error ? err.message : 'Unknown server error';
+    const code = typeof err === 'object' && err !== null && 'code' in err
+      ? String((err as { code?: unknown }).code ?? '')
+      : '';
+
+    // Return actionable diagnostics while debugging deployment/database configuration.
+    return NextResponse.json(
+      {
+        error: 'Signup failed',
+        code: code || undefined,
+        detail: message,
+      },
+      { status: 500 }
+    );
   }
 }
