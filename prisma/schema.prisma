@@ -23,6 +23,12 @@ enum AttendanceStatus {
   ABSENT
 }
 
+enum SignupRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id            String   @id @default(cuid())
   name          String
@@ -49,6 +55,7 @@ model Tuition {
   classes     Class[]
   feePayments FeePayment[]
   notices     Notice[]
+  signupRequests StudentSignupRequest[]
 
   @@map("tuitions")
 }
@@ -107,6 +114,24 @@ model StudentInfo {
   @@map("students_info")
 }
 
+model StudentSignupRequest {
+  id           String              @id @default(cuid())
+  tuition_id   String
+  name         String
+  phone        String
+  password_hash String
+  grade_class  String?
+  custom_fee   Decimal?            @db.Decimal(10, 2)
+  status       SignupRequestStatus @default(PENDING)
+  created_at   DateTime            @default(now())
+  reviewed_at  DateTime?
+  tuition      Tuition             @relation(fields: [tuition_id], references: [id], onDelete: Cascade)
+
+  @@index([tuition_id, status])
+  @@index([phone])
+  @@map("student_signup_requests")
+}
+
 model Attendance {
   id         String           @id @default(cuid())
   class_id   String
@@ -137,7 +162,6 @@ model FeePayment {
   @@index([student_id])
   @@index([tuition_id])
   @@index([for_month])
-  @@map("fee_payments")
 }
 
 model Notice {
