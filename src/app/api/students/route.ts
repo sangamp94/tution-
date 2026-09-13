@@ -29,9 +29,29 @@ export const POST = withAuth(async (req: NextRequest, _ctx, auth) => {
 
 export const GET = withAuth(async (_req: NextRequest, _ctx, auth) => {
   try {
-    const tuition = auth.role === 'TEACHER' ? await prisma.tuition.findUnique({ where: { tutor_id: auth.userId } }) : (await prisma.studentInfo.findUnique({ where: { user_id: auth.userId } }))?.tuition;
-    if (!tuition) return NextResponse.json({ students: [] });
-    const students = await prisma.studentInfo.findMany({ where: { tuition_id: tuition.id }, include: { user: { select: { id: true, name: true, phone: true } } }, orderBy: { joining_date: 'desc' } });
+    let tuitionId: string | null = null;
+
+    if (auth.role === 'TEACHER') {
+      const tuition = await prisma.tuition.findUnique({
+        where: { tutor_id: auth.userId },
+        select: { id: true },
+      });
+      tuitionId = tuition?.id ?? null;
+    } else {
+      const student = await prisma.studentInfo.findUnique({
+        where: { user_id: auth.userId },
+        select: { tuition_id: true },
+      });
+      tuitionId = student?.tuition_id ?? null;
+    }
+
+    if (!tuitionId) return NextResponse.json({ students: [] });
+
+    const students = await prisma.studentInfo.findMany({
+      where: { tuition_id: tuitionId },
+      include: { user: { select: { id: true, name: true, phone: true } } },
+      orderBy: { joining_date: 'desc' },
+    });
     return NextResponse.json({ students });
   } catch (err) {
     console.error('Student list error:', err);
