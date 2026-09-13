@@ -28,8 +28,21 @@ export async function POST(req: NextRequest) {
       role: user.role,
       user: { id: user.id, name: user.name, phone: user.phone },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('Login error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+    const message = err instanceof Error ? err.message : 'Unknown server error';
+    const code = typeof err === 'object' && err !== null && 'code' in err
+      ? String((err as { code?: unknown }).code ?? '')
+      : '';
+
+    return NextResponse.json(
+      {
+        error: 'Login failed',
+        code: code || undefined,
+        detail: message,
+      },
+      { status: 500 }
+    );
   }
 }
