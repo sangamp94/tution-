@@ -2,9 +2,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Neon Postgres.
-// DATABASE_URL  -> pooled connection string (used at runtime, via PgBouncer)
-// DIRECT_URL    -> direct (unpooled) connection string (used for migrations)
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -21,6 +18,11 @@ enum TransactionStatus {
   PENDING
 }
 
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+}
+
 model User {
   id            String   @id @default(cuid())
   name          String
@@ -28,27 +30,48 @@ model User {
   password_hash String
   role          Role
   created_at    DateTime @default(now())
-
-  // Present only when role == TEACHER
-  classesTaught  Class[]         @relation("TeacherClasses")
-  // Present only when role == STUDENT
+  classesTaught Class[] @relation("TeacherClasses")
   studentProfile StudentProfile?
+  tuition       Tuition? @relation("TutorTuition")
+  studentsInfo  StudentInfo[] @relation("StudentUser")
 
   @@map("users")
 }
 
-model Class {
-  id         String @id @default(cuid())
-  name       String
-  subject    String
-  schedule   String // free-text, e.g. "Mon/Wed/Fri 5:00 PM - 6:00 PM"
-  teacher_id String
-  teacher    User   @relation("TeacherClasses", fields: [teacher_id], references: [id])
+model Tuition {
+  id          String   @id @default(cuid())
+  tutor_id    String   @unique
+  name        String
+  default_fee Decimal  @db.Decimal(10, 2)
+  created_at  DateTime @default(now())
+  tutor       User     @relation("TutorTuition", fields: [tutor_id], references: [id], onDelete: Cascade)
+  students    StudentInfo[]
+  classes     Class[]
+  feePayments FeePayment[]
+  notices     Notice[]
 
-  students  StudentProfile[]
-  materials Material[]
+  @@map("tuitions")
+}
+
+model Class {
+  id           String   @id @default(cuid())
+  name         String
+  subject      String
+  schedule     String
+  teacher_id   String
+  teacher      User     @relation("TeacherClasses", fields: [teacher_id], references: [id])
+  tuition_id   String?
+  tuition      Tuition? @relation(fields: [tuition_id], references: [id], onDelete: Cascade)
+  tutor_name   String?
+  start_time   DateTime?
+  end_time     DateTime?
+  days_of_week String?
+  students     StudentProfile[]
+  materials    Material[]
+  attendance   Attendance[]
 
   @@index([teacher_id])
+  @@index([tuition_id])
   @@map("classes")
 }
 
@@ -62,22 +85,72 @@ model StudentProfile {
   parent_phone String?
   monthly_fee  Decimal @db.Decimal(10, 2)
   address      String?
-
   transactions Transaction[]
 
   @@index([class_id])
   @@map("student_profiles")
 }
 
+model StudentInfo {
+  id           String   @id @default(cuid())
+  user_id      String   @unique
+  tuition_id   String
+  grade_class  String?
+  joining_date DateTime @default(now())
+  custom_fee   Decimal? @db.Decimal(10, 2)
+  user         User     @relation("StudentUser", fields: [user_id], references: [id], onDelete: Cascade)
+  tuition      Tuition  @relation(fields: [tuition_id], references: [id], onDelete: Cascade)
+  attendance   Attendance[]
+  feePayments  FeePayment[]
+
+  @@index([tuition_id])
+  @@map("students_info")
+}
+
+model Attendance {
+  id         String           @id @default(cuid())
+  class_id   String
+  student_id String
+  date       DateTime
+  status     AttendanceStatus
+  class      Class            @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  student    StudentInfo      @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@unique([class_id, student_id, date])
+  @@index([student_id])
+  @@index([class_id])
+  @@map("attendance")
+}
+
+model FeePayment {
+  id            String   @id @default(cuid())
+  student_id    String
+  tuition_id    String
+  amount        Decimal  @db.Decimal(10, 2)
+  payment_date  DateTime @default(now())
+  for_month     String
+  next_due_date DateTime?
+  status        TransactionStatus @default(PAID)
+  student       StudentInfo @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  tuition       Tuition @relation(fields: [tuition_id], references: [id], onDelete: Cascade)
+
+  @@index([student_id])
+  @@index([tuition_id])
+  @@index([for_month])
+  @@map("fee_payments")
+}
+
 model Notice {
   id          String   @id @default(cuid())
+  tuition_id  String?
   title       String
   description String
-  // "TEACHER" | "STUDENT" | "ALL" - kept as a plain string (rather than the
-  // Role enum) so a notice can target everyone without a nullable enum.
+  content     String?
   target_role String   @default("ALL")
   created_at  DateTime @default(now())
+  tuition     Tuition? @relation(fields: [tuition_id], references: [id], onDelete: Cascade)
 
+  @@index([tuition_id])
   @@map("notices")
 }
 
@@ -86,7 +159,7 @@ model Transaction {
   student_id     String
   student        StudentProfile    @relation(fields: [student_id], references: [id], onDelete: Cascade)
   amount         Decimal           @db.Decimal(10, 2)
-  month          String // "YYYY-MM", e.g. "2026-09"
+  month          String
   status         TransactionStatus @default(PENDING)
   payment_method String?
   created_at     DateTime          @default(now())
