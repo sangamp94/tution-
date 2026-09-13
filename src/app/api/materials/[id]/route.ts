@@ -11,7 +11,8 @@ async function ownedMaterial(id: string, userId: string) {
 export const PATCH = withAuth(async (req: NextRequest, ctx, auth) => {
   try {
     if (auth.role !== 'TEACHER') return NextResponse.json({ error: 'Teacher access required' }, { status: 403 });
-    const id = ctx?.params?.id;
+    const rawId = ctx?.params?.id;
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
     if (!id) return NextResponse.json({ error: 'Material id is required' }, { status: 400 });
     const existing = await ownedMaterial(id, auth.userId);
     if (!existing) return NextResponse.json({ error: 'Material not found' }, { status: 404 });
@@ -40,7 +41,8 @@ export const PATCH = withAuth(async (req: NextRequest, ctx, auth) => {
 export const DELETE = withAuth(async (_req: NextRequest, ctx, auth) => {
   try {
     if (auth.role !== 'TEACHER') return NextResponse.json({ error: 'Teacher access required' }, { status: 403 });
-    const id = ctx?.params?.id;
+    const rawId = ctx?.params?.id;
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
     if (!id) return NextResponse.json({ error: 'Material id is required' }, { status: 400 });
     const existing = await ownedMaterial(id, auth.userId);
     if (!existing) return NextResponse.json({ error: 'Material not found' }, { status: 404 });
