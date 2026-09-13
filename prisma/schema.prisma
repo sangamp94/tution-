@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Neon Postgres.
+// DATABASE_URL  -> pooled connection string (used at runtime, via PgBouncer)
+// DIRECT_URL    -> direct (unpooled) connection string (used for migrations)
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+enum TransactionStatus {
+  PAID
+  PENDING
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  phone         String   @unique
+  password_hash String
+  role          Role
+  created_at    DateTime @default(now())
+
+  // Present only when role == TEACHER
+  classesTaught  Class[]         @relation("TeacherClasses")
+  // Present only when role == STUDENT
+  studentProfile StudentProfile?
+
+  @@map("users")
+}
+
+model Class {
+  id         String @id @default(cuid())
+  name       String
+  subject    String
+  schedule   String // free-text, e.g. "Mon/Wed/Fri 5:00 PM - 6:00 PM"
+  teacher_id String
+  teacher    User   @relation("TeacherClasses", fields: [teacher_id], references: [id])
+
+  students  StudentProfile[]
+  materials Material[]
+
+  @@index([teacher_id])
+  @@map("classes")
+}
+
+model StudentProfile {
+  id           String  @id @default(cuid())
+  user_id      String  @unique
+  user         User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  class_id     String?
+  class        Class?  @relation(fields: [class_id], references: [id], onDelete: SetNull)
+  parent_name  String?
+  parent_phone String?
+  monthly_fee  Decimal @db.Decimal(10, 2)
+  address      String?
+
+  transactions Transaction[]
+
+  @@index([class_id])
+  @@map("student_profiles")
+}
+
+model Notice {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  // "TEACHER" | "STUDENT" | "ALL" - kept as a plain string (rather than the
+  // Role enum) so a notice can target everyone without a nullable enum.
+  target_role String   @default("ALL")
+  created_at  DateTime @default(now())
+
+  @@map("notices")
+}
+
+model Transaction {
+  id             String            @id @default(cuid())
+  student_id     String
+  student        StudentProfile    @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  amount         Decimal           @db.Decimal(10, 2)
+  month          String // "YYYY-MM", e.g. "2026-09"
+  status         TransactionStatus @default(PENDING)
+  payment_method String?
+  created_at     DateTime          @default(now())
+
+  @@index([student_id])
+  @@index([month])
+  @@map("transactions")
+}
+
+model Material {
+  id              String   @id @default(cuid())
+  class_id        String
+  class           Class    @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  title           String
+  drive_file_id   String
+  drive_view_link String
+  uploaded_at     DateTime @default(now())
+
+  @@index([class_id])
+  @@map("materials")
+}
