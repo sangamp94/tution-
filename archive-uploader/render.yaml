@@ -1,0 +1,27 @@
+services:
+  - type: worker
+    name: archive-url-uploader
+    runtime: python
+    rootDir: archive-uploader
+    buildCommand: pip install -r requirements.txt
+    startCommand: python worker.py
+    plan: starter
+    envVars:
+      - key: SOURCE_URL
+        sync: false
+      - key: IA_ACCESS_KEY
+        sync: false
+      - key: IA_SECRET_KEY
+        sync: false
+      - key: IA_IDENTIFIER
+        sync: false
+      - key: IA_TITLE
+        sync: false
+      - key: IA_DESCRIPTION
+        sync: false
+      - key: IA_CREATOR
+        sync: false
+      - key: IA_LICENSE_URL
+        sync: false
+      - key: MAX_BYTES
+        value: "2147483648"
